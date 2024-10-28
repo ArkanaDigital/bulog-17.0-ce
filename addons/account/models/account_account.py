@@ -101,7 +101,14 @@ class AccountAccount(models.Model):
     note = fields.Text('Internal Notes', tracking=True)
     company_id = fields.Many2one('res.company', string='Company', required=True, readonly=False,
         default=lambda self: self.env.company)
-    tag_ids = fields.Many2many('account.account.tag', 'account_account_account_tag', string='Tags', help="Optional tags you may want to assign for custom reporting", ondelete='restrict')
+    tag_ids = fields.Many2many(
+        comodel_name='account.account.tag',
+        relation='account_account_account_tag',
+        string='Tags',
+        help="Optional tags you may want to assign for custom reporting",
+        ondelete='restrict',
+        tracking=True,
+    )
     group_id = fields.Many2one('account.group', compute='_compute_account_group', store=True, readonly=True,
                                help="Account prefixes can determine account groups.")
     root_id = fields.Many2one('account.root', compute='_compute_account_root', store=True, precompute=True)
@@ -452,7 +459,11 @@ class AccountAccount(models.Model):
     @api.depends('account_type')
     def _compute_reconcile(self):
         for account in self:
-            account.reconcile = account.account_type in ('asset_receivable', 'liability_payable')
+            if account.internal_group in ('income', 'expense', 'equity'):
+                account.reconcile = False
+            elif account.account_type in ('asset_receivable', 'liability_payable'):
+                account.reconcile = True
+            # For other asset/liability accounts, don't do any change to account.reconcile.
 
     def _set_opening_debit(self):
         for record in self:
@@ -637,6 +648,8 @@ class AccountAccount(models.Model):
         for company, company_accounts in accounts_per_company.items():
             company._update_opening_move({account: data[account.id] for account in company_accounts})
 
+        self.env.flush_all()
+
     def _toggle_reconcile_to_true(self):
         '''Toggle the `reconcile´ boolean from False -> True
 
@@ -715,6 +728,12 @@ class AccountAccount(models.Model):
                     raise UserError(_('You cannot set a currency on this account as it already has some journal entries having a different foreign currency.'))
 
         return super(AccountAccount, self).write(vals)
+
+    def _load_records_write(self, values):
+        if 'prefix' in values:
+            del values['code_digits']
+            del values['prefix']
+        super()._load_records_write(values)
 
     @api.ondelete(at_uninstall=False)
     def _unlink_except_contains_journal_items(self):
@@ -894,7 +913,9 @@ class AccountGroup(models.Model):
             company_ids = account_ids.company_id.root_id.ids
             account_ids = account_ids.ids
         else:
-            company_ids = self.company_id.ids
+            company_ids = []
+            for company in self.company_id:
+                company_ids.extend(company._accessible_branches().ids)
             account_ids = []
         if not company_ids and not account_ids:
             return
@@ -951,13 +972,13 @@ class AccountGroup(models.Model):
                    AND parent.id != child.id
                    AND parent.company_id = child.company_id
                  WHERE child.company_id IN %s
-                   AND child.parent_id IS DISTINCT FROM parent.id -- IMPORTANT avoid to update if nothing changed
               ORDER BY child.id, char_length(parent.code_prefix_start) DESC
             )
             UPDATE account_group child
                SET parent_id = relation.parent_id
               FROM relation
              WHERE child.id = relation.child_id
+               AND child.parent_id IS DISTINCT FROM relation.parent_id
          RETURNING child.id
         """, tuple(company_ids))
         self.env.cr.execute(query)

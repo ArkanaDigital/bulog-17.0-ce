@@ -5691,7 +5691,7 @@ msgid ""
 "Please use the copy button to report the error to your support service."
 msgstr ""
 "Vă rog să utilizați butonul de copiere pentru a raporta eroarea către serviciul de suport. \n"
-"Apăsați pe butonul de alături pentru a copia eroare în clipboard și apoi folosiți Ctrl+V în fereastra de conversație cu echipa de suport. Nu transmiteți o pază cu aceasta fereastră."
+"Apăsați pe butonul de alături pentru a copia eroare în clipboard și apoi folosiți Ctrl+V în fereastra de conversație cu echipa de suport. Nu transmiteți o poză cu aceasta fereastră."
 
 #. module: web
 #. odoo-javascript
@@ -6034,6 +6034,10 @@ msgid ""
 "\n"
 "Think twice before you click that 'Delete' button!"
 msgstr ""
+"Ești gata să-ți faci recordul să dispară în aer? Esti sigur?\n"
+"Va dispărea pentru totdeauna!\n"
+"\n"
+"Gândește-te de două ori înainte de a face clic pe butonul „Șterge”!"
 
 #. module: web
 #. odoo-javascript
